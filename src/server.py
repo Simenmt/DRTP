@@ -13,23 +13,28 @@ def server_mode(args):
     print(f"Server listening on port {PORT}")
 
     while True:
-        try:
-            data, addr = server_socket.recvfrom(PACKET_SIZE)
-            handle_conn(server_socket, addr, data)
-        except:
-            print("HALLOOOOO")
-            continue
-
+    
+        data, addr = server_socket.recvfrom(PACKET_SIZE)
+        prev_seq, ack_num = handle_conn(server_socket, addr, data)
         while True:
             packet = server_socket.recv(PACKET_SIZE)
-            
             seq_num, ack_num, flags, data = parse_packet(packet)
-            #
-            print(f'FLAGS: {flags}')
-            #
-            if flags == FIN:
+
+            if flags & FIN:
                 handle_conn(server_socket, addr, packet)
                 break
+
+            print(f'SEQ_NUM: {seq_num}')
+            print(f'ACK_SEQ: {ack_num}')
+            print(f'PREV_SEQ: {prev_seq}')
+            if seq_num == prev_seq + 1:
+                with open('file.jpg', 'ab') as f:
+                    f.write(data)
+                prev_seq = seq_num
+                ack_packet = make_packet(ack_num, seq_num + 1, ACK)
+                server_socket.sendto(ack_packet, addr)
+
+
                 
         
 
@@ -38,26 +43,23 @@ def server_mode(args):
 
 
 def handle_conn(server_socket, addr, packet):
-    print(f'New connection from {addr}')
     while True:
         #packet = server_socket.recv(PACKET_SIZE)
 
-        seq_num, ack_num, flags, data = parse_packet(packet)
+        seq_num, ack_num, flags, _ = parse_packet(packet)
 
         if flags & SYN:
+            print(f'New connection from {addr}')
+
             print("SYN packet recieved")
-            syn_ack_packet = make_packet(0, seq_num + 1, SYN | ACK)
+            syn_ack_packet = make_packet(1, seq_num + 1, SYN | ACK)
             server_socket.sendto(syn_ack_packet, addr)
             print("SYN ACK packet sent")
-            sleep(2)
         elif flags & ACK:
             print("ACK packet recieved")
             print("Connection established")
             break
         elif flags & FIN:
-            #
-            print("HER ER JEG NÅ")
-            #
             print("FIN packet recieved")
             ack_packet = make_packet(ack_num, seq_num + 1, ACK)
             server_socket.sendto(ack_packet, addr)
@@ -70,4 +72,6 @@ def handle_conn(server_socket, addr, packet):
 
             break
         packet = server_socket.recv(PACKET_SIZE)
+        seq_num, ack_num, flags, data = parse_packet(packet)
+    return seq_num, ack_num
         
