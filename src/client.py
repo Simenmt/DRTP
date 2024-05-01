@@ -68,45 +68,49 @@ def send_data(client_socket, seq_num, ack_num, addr, file_name, window_size):
         file_data = f.read()
 
     base_seq = seq_num
+    next_seq_num = seq_num
     packets = dict()
     i = 0
     while i < len(file_data):
-        while seq_num <  base_seq + window_size:
+        while next_seq_num <  base_seq + window_size:
             chunk = file_data[i:i + DATA_SIZE]
-            packet = make_packet(seq_num, ack_num + 1, 0, chunk)
+            packet = make_packet(next_seq_num, ack_num + 1, 0, chunk)
 
-            packets[seq_num] = packet
+            packets[next_seq_num] = packet
             client_socket.sendto(packet, addr)
-            print(f'{datetime.now().strftime("%H:%M:%S.%f")} -- packet with seq = {seq_num} is sent, sliding window = {packets.keys()}')
-            seq_num += 1
+            print(f'{datetime.now().strftime("%H:%M:%S.%f")} -- packet with seq = {next_seq_num} is sent, sliding window = {packets.keys()}')
+            next_seq_num += 1
             i += DATA_SIZE
-
-        packets, base_seq = recv_ack(client_socket, packets, addr, base_seq)
+        try:
+            base_seq = recv_ack(client_socket, packets, addr)
+        except TimeoutError:
+            handle_rto(client_socket, packets, addr)
 
     # To recieve the ACK's of the last packets before closing the connection
     while len(packets) > 0:
-        packets, base_seq = recv_ack(client_socket, packets, addr, base_seq)
+        try:
+            base_seq = recv_ack(client_socket, packets, addr)
+        except TimeoutError:
+            handle_rto(client_socket, packets, addr)
     
     return seq_num, ack_num
 
 
-def recv_ack(client_socket, packets, addr, base_seq):
-    try:
-        packet = client_socket.recv(PACKET_SIZE)
-        _, ack_num, flags, _ = parse_packet(packet)
-        if flags & ACK:
-            if ack_num in packets.keys():
-                print(f'{datetime.now().strftime("%H:%M:%S.%f")} -- ACK for packet = {ack_num} is recieved')
-                if ack_num == base_seq:
-                    base_seq += 1
-                del packets[ack_num]
+def recv_ack(client_socket, packets, addr):
+    packet = client_socket.recv(PACKET_SIZE)
+    _, ack_num, flags, _ = parse_packet(packet)
+    if flags & ACK:
+        if ack_num in packets.keys():
+            print(f'{datetime.now().strftime("%H:%M:%S.%f")} -- ACK for packet = {ack_num} is recieved')
+            for seq_num in packets.copy():
+                del packets[seq_num]
+                if seq_num == ack_num:
+                    break
+    return ack_num + 1
                 
-                
-    except TimeoutError:
-        print("RTO occured")
+def handle_rto(client_socket, packets, addr):
+    print("RTO occured")
 
-        for seq_num, packet in packets.items():
-            print(f'{datetime.now().strftime("%H:%M:%S.%f")} -- retransmitting packet with seq {seq_num}')
-            client_socket.sendto(packet, addr)
-
-    return packets, base_seq
+    for seq_num, packet in packets.items():
+        print(f'{datetime.now().strftime("%H:%M:%S.%f")} -- retransmitting packet with seq {seq_num}')
+        client_socket.sendto(packet, addr)
