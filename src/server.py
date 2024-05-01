@@ -1,6 +1,5 @@
 import socket
-from time import sleep
-from common.constants import PACKET_SIZE, SYN, ACK, FIN, RST
+from common.constants import PACKET_SIZE, SYN, ACK, FIN
 from common.utils import *
 from datetime import datetime
 import time
@@ -16,24 +15,23 @@ def server_mode(args):
     print(f"Server listening on port {PORT}")
 
     while True:
-        start_time = time.time()
-        file_size = 0
-
         data, addr = server_socket.recvfrom(PACKET_SIZE)
         seq_num, ack_num = handle_conn(server_socket, addr, data)
         next_seq = ack_num + 1
+        start_time = time.time()
+        file_size = 0
 
         while True:
             packet = server_socket.recv(PACKET_SIZE)
             seq_num, ack_num, flags, data = parse_packet(packet)
 
-            if flags:
+            if flags & FIN:
                 throughput = file_size / 1000 / 1000 / (time.time() - start_time)
                 print(f'\nThe throughput is {round(throughput, 2)} Mbps\n')
                 handle_conn(server_socket, addr, packet)
                 break
 
-
+            # Discard the packet that was specified with the -d flag. Then sets the value to -1 to avoid discarding again.
             if seq_num == packet_to_dicard:
                 packet_to_dicard = -1
             elif seq_num == next_seq:
@@ -47,7 +45,6 @@ def server_mode(args):
                 server_socket.sendto(ack_packet, addr)
                 print(f'{datetime.now().strftime("%H:%M:%S.%f")} -- sending ACK for the recieved packet {seq_num}')
                 next_seq += 1
-
             else:
                 try:
                     print(f'{datetime.now().strftime("%H:%M:%S.%f")} -- out of order packet {seq_num} is recieved')
@@ -60,8 +57,6 @@ def server_mode(args):
 
 def handle_conn(server_socket, addr, packet):
     while True:
-        #packet = server_socket.recv(PACKET_SIZE)
-
         seq_num, ack_num, flags, _ = parse_packet(packet)
 
         if flags & SYN:

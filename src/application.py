@@ -5,6 +5,11 @@ from socket import *
 import server
 import client
 
+'''
+    Description:
+        Main-function that start either the client or server 
+        depending on the flags given in the command.
+'''
 def main():
     args = get_args()
 
@@ -61,6 +66,7 @@ def validate_port(port):
 def get_args():
     parser = argparse.ArgumentParser(description="data args")
 
+    # Group to avoid the use of both -c and -s flags.
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('-s', '--server', action='store_true', help='run as server')
     group.add_argument('-c', '--client', action='store_true', help='run as client')
@@ -74,40 +80,6 @@ def get_args():
     
     
     return parser.parse_args()
-
-
-"""
-def get_args():
-    # Opprett en toppnivå parser
-    parser = argparse.ArgumentParser(description="data args")
-    parser.add_argument('-i', '--ip', type=str, default='10.0.1.2', help='IP address to use')
-    parser.add_argument('-p', '--port', type=int, default=8080, help='Port to use')
-
-    # Definer mutually exclusive group for server og klient flag
-    group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument('-s', '--server', action='store_true', help='run as server')
-    group.add_argument('-c', '--client', action='store_true', help='run as client')
-
-    # Først parse de kjente argumentene
-    args, unknown = parser.parse_known_args()
-
-    # Deretter parse resten av argumentene basert på om vi er i server eller klient modus
-    if args.server:
-        server_parser = argparse.ArgumentParser()
-        server_parser.add_argument('-w', '--window', type=int, default=3, help='Window size for server')
-        server_parser.add_argument('-d', '--discard', type=int, help='Discard rate for server')
-        server_args = server_parser.parse_args(unknown)
-        args.window = server_args.window
-        args.discard = server_args.discard
-    elif args.client:
-        client_parser = argparse.ArgumentParser()
-        client_parser.add_argument('-f', '--file', type=str, required=True, help='File to send for client')
-        client_args = client_parser.parse_args(unknown)
-        args.file = client_args.file
-
-    return args
-"""
-
 
 
 if __name__ == "__main__":

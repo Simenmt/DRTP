@@ -1,3 +1,5 @@
+# File to store all constant variables that are used on both the client and server side.
+
 SYN = 0b1000
 ACK = 0b0100
 FIN = 0b0010
