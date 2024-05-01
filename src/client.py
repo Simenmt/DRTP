@@ -68,39 +68,37 @@ def send_data(client_socket, seq_num, ack_num, addr, file_name, window_size):
         file_data = f.read()
 
     base_seq = seq_num
-    current_window = set()
     packets = dict()
     i = 0
     while i < len(file_data):
-        while len(current_window) < window_size and i < len(file_data):
+        while seq_num <  base_seq + window_size:
             chunk = file_data[i:i + DATA_SIZE]
             packet = make_packet(seq_num, ack_num + 1, 0, chunk)
 
             packets[seq_num] = packet
             client_socket.sendto(packet, addr)
-            current_window.add(seq_num)
-            print(f'{datetime.now().strftime("%H:%M:%S.%f")} -- packet with seq = {seq_num} is sent, sliding window = {current_window}')
+            print(f'{datetime.now().strftime("%H:%M:%S.%f")} -- packet with seq = {seq_num} is sent, sliding window = {packets.keys()}')
             seq_num += 1
             i += DATA_SIZE
 
-        current_window, packets, base_seq = recv_ack(client_socket, current_window, packets, addr, base_seq)
+        packets, base_seq = recv_ack(client_socket, packets, addr, base_seq)
 
     # To recieve the ACK's of the last packets before closing the connection
     while len(packets) > 0:
-        current_window, packets, base_seq = recv_ack(client_socket, current_window, packets, addr, base_seq)
+        packets, base_seq = recv_ack(client_socket, packets, addr, base_seq)
     
     return seq_num, ack_num
 
 
-def recv_ack(client_socket, current_window, packets, addr, base_seq):
+def recv_ack(client_socket, packets, addr, base_seq):
     try:
         packet = client_socket.recv(PACKET_SIZE)
         _, ack_num, flags, _ = parse_packet(packet)
         if flags & ACK:
-            if ack_num == base_seq:
+            if ack_num in packets.keys():
                 print(f'{datetime.now().strftime("%H:%M:%S.%f")} -- ACK for packet = {ack_num} is recieved')
-                current_window.remove(base_seq)
-                base_seq += 1
+                if ack_num == base_seq:
+                    base_seq += 1
                 del packets[ack_num]
                 
                 
@@ -111,4 +109,4 @@ def recv_ack(client_socket, current_window, packets, addr, base_seq):
             print(f'{datetime.now().strftime("%H:%M:%S.%f")} -- retransmitting packet with seq {seq_num}')
             client_socket.sendto(packet, addr)
 
-    return current_window, packets, base_seq
+    return packets, base_seq
