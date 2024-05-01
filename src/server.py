@@ -2,8 +2,11 @@ import socket
 from time import sleep
 from common.constants import PACKET_SIZE, SYN, ACK, FIN, RST
 from common.utils import *
+from datetime import datetime
+import time
 
 def server_mode(args):
+    packet_to_dicard = args.discard
     print(f'{args.ip}, {args.port}')
 
     HOST, PORT = args.ip, args.port
@@ -13,32 +16,45 @@ def server_mode(args):
     print(f"Server listening on port {PORT}")
 
     while True:
-    
+        start_time = time.time()
+        file_size = 0
+
         data, addr = server_socket.recvfrom(PACKET_SIZE)
-        prev_seq, ack_num = handle_conn(server_socket, addr, data)
+        seq_num, ack_num = handle_conn(server_socket, addr, data)
+        next_seq = ack_num + 1
+
         while True:
             packet = server_socket.recv(PACKET_SIZE)
             seq_num, ack_num, flags, data = parse_packet(packet)
 
-            if flags & FIN:
+            if flags:
+                throughput = file_size / 1000 / 1000 / (time.time() - start_time)
+                print(f'\nThe throughput is {round(throughput, 2)} Mbps\n')
                 handle_conn(server_socket, addr, packet)
                 break
 
-            print(f'SEQ_NUM: {seq_num}')
-            print(f'ACK_SEQ: {ack_num}')
-            print(f'PREV_SEQ: {prev_seq}')
-            if seq_num == prev_seq + 1:
+
+            if seq_num == packet_to_dicard:
+                packet_to_dicard = -1
+            elif seq_num == next_seq:
+                print(f'{datetime.now().strftime("%H:%M:%S.%f")} -- packet {seq_num} is recieved')
+
+                file_size += len(data)
+
                 with open('file.jpg', 'ab') as f:
                     f.write(data)
-                prev_seq = seq_num
-                ack_packet = make_packet(ack_num, seq_num + 1, ACK)
+                ack_packet = make_packet(ack_num, seq_num, ACK)
                 server_socket.sendto(ack_packet, addr)
+                print(f'{datetime.now().strftime("%H:%M:%S.%f")} -- sending ACK for the recieved packet {seq_num}')
+                next_seq += 1
 
-
-                
-        
-
-
+            else:
+                try:
+                    print(f'{datetime.now().strftime("%H:%M:%S.%f")} -- out of order packet {seq_num} is recieved')
+                    ack_packet = make_packet(ack_num, next_seq - 1, ACK)
+                    server_socket.sendto(ack_packet, addr)
+                except NameError:
+                    continue
 
 
 
@@ -72,6 +88,5 @@ def handle_conn(server_socket, addr, packet):
 
             break
         packet = server_socket.recv(PACKET_SIZE)
-        seq_num, ack_num, flags, data = parse_packet(packet)
     return seq_num, ack_num
         
