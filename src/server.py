@@ -4,9 +4,15 @@ from common.utils import *
 from datetime import datetime
 import time
 
+'''
+    Description:
+        Server side of the application
+    Arguments:
+        args: the given command line arguments.
+    Returns nothing
+'''
 def server_mode(args):
     packet_to_dicard = args.discard
-    print(f'{args.ip}, {args.port}')
 
     HOST, PORT = args.ip, args.port
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -16,17 +22,20 @@ def server_mode(args):
 
     while True:
         data, addr = server_socket.recvfrom(PACKET_SIZE)
-        seq_num, ack_num = handle_conn(server_socket, addr, data)
-        next_seq = ack_num + 1
+        handle_conn(server_socket, addr, data)
+        next_seq = 1
         start_time = time.time()
-        file_size = 0
+        file_data = b''
 
         while True:
             packet = server_socket.recv(PACKET_SIZE)
             seq_num, ack_num, flags, data = parse_packet(packet)
 
             if flags & FIN:
-                throughput = file_size / 1000 / 1000 / (time.time() - start_time)
+                with open('file.jpg', 'wb') as f:
+                    f.write(file_data)
+
+                throughput = len(file_data) / 1000 / 1000 / (time.time() - start_time)
                 print(f'\nThe throughput is {round(throughput, 2)} Mbps\n')
                 handle_conn(server_socket, addr, packet)
                 break
@@ -37,33 +46,38 @@ def server_mode(args):
             elif seq_num == next_seq:
                 print(f'{datetime.now().strftime("%H:%M:%S.%f")} -- packet {seq_num} is recieved')
 
-                file_size += len(data)
+                file_data += data
 
-                with open('file.jpg', 'ab') as f:
-                    f.write(data)
                 ack_packet = make_packet(ack_num, seq_num, ACK)
                 server_socket.sendto(ack_packet, addr)
                 print(f'{datetime.now().strftime("%H:%M:%S.%f")} -- sending ACK for the recieved packet {seq_num}')
                 next_seq += 1
+            # If the packet is out of order, dicard it
             else:
-                try:
-                    print(f'{datetime.now().strftime("%H:%M:%S.%f")} -- out of order packet {seq_num} is recieved')
-                    ack_packet = make_packet(ack_num, next_seq - 1, ACK)
-                    server_socket.sendto(ack_packet, addr)
-                except NameError:
-                    continue
+                print(f'{datetime.now().strftime("%H:%M:%S.%f")} -- out of order packet {seq_num} is recieved')
 
 
 
+'''
+    Description:
+        Function to handle both connection and teardown with the client.
+        As informed on Zulip, no sequence or ackowledgement numbers are 
+        required in the connection handling
+    Arguments:
+        server_socket: socket-object needed to send and recieve packets
+        addr: client IP and port
+        packet: packet to be handled
+    Return nothing
+'''
 def handle_conn(server_socket, addr, packet):
     while True:
-        seq_num, ack_num, flags, _ = parse_packet(packet)
+        _, _, flags, _ = parse_packet(packet)
 
         if flags & SYN:
             print(f'New connection from {addr}')
 
             print("SYN packet recieved")
-            syn_ack_packet = make_packet(1, seq_num + 1, SYN | ACK)
+            syn_ack_packet = make_packet(0, 0, SYN | ACK)
             server_socket.sendto(syn_ack_packet, addr)
             print("SYN ACK packet sent")
         elif flags & ACK:
@@ -72,16 +86,10 @@ def handle_conn(server_socket, addr, packet):
             break
         elif flags & FIN:
             print("FIN packet recieved")
-            ack_packet = make_packet(ack_num, seq_num + 1, ACK)
+            ack_packet = make_packet(0, 0, FIN | ACK)
             server_socket.sendto(ack_packet, addr)
-            print("ACK packet sent")
-            fin_packet = make_packet(seq_num + 1, ack_num, FIN)
-            server_socket.sendto(fin_packet, addr)
-            print("FIN packet sent")
+            print("FIN-ACK packet sent")
             print("Connection closed")
-            packet = server_socket.recv(PACKET_SIZE)
-
             break
         packet = server_socket.recv(PACKET_SIZE)
-    return seq_num, ack_num
         

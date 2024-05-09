@@ -1,6 +1,5 @@
 import argparse
 import ipaddress
-import os
 from socket import *
 import server
 import client
@@ -64,7 +63,7 @@ def validate_port(port):
     Returns the parsed args
 """
 def get_args():
-    parser = argparse.ArgumentParser(description="data args")
+    parser = argparse.ArgumentParser(description="application args")
 
     # Group to avoid the use of both -c and -s flags.
     group = parser.add_mutually_exclusive_group(required=True)
