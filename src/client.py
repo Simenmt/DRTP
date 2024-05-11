@@ -39,7 +39,7 @@ def establish_conn(client_socket, addr):
     while True:
         try:
             packet = client_socket.recv(PACKET_SIZE)
-        except (TimeoutError, ConnectionResetError) as err:
+        except (TimeoutError, ConnectionResetError):
             print("Connection failed")
             exit(1)
         _, _, flags, _ = parse_packet(packet)
@@ -122,6 +122,8 @@ def send_data(client_socket, addr, file_name, window_size):
         except TimeoutError:
             handle_rto(client_socket, packets, addr)
     
+    print('\nDATA finished\n')
+    
 
 '''
     Descirption:
@@ -136,14 +138,15 @@ def recv_ack(client_socket, packets):
     _, ack_num, flags, _ = parse_packet(packet)
     if flags & ACK:
         # If an duplicate ack is recieved, discard
-        if ack_num in packets.keys():
-            print(f'{datetime.now().strftime("%H:%M:%S.%f")} -- ACK for packet = {ack_num} is recieved')
-            for seq_num in packets.copy():
-                del packets[seq_num]
-                if seq_num == ack_num:
-                    break
+        if ack_num not in packets:
+            return ack_num + 1
+        print(f'{datetime.now().strftime("%H:%M:%S.%f")} -- ACK for packet = {ack_num} is recieved')
+        while packets:
+            seq_num = next(iter(packets))  # get first key in dict
+            packets.pop(seq_num)  # remove the key
+            if seq_num == ack_num:
+                break
     return ack_num + 1
-
 '''
     Description:
         Function to handle the situation if a timeout (500ms) occurs.
