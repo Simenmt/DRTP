@@ -20,41 +20,41 @@ def server_mode(args):
 
     print(f"Server listening on port {PORT}")
 
+
+    data, addr = server_socket.recvfrom(PACKET_SIZE)
+    handle_conn(server_socket, addr, data)
+    next_seq = 1
+    start_time = time.time()
+    file_data = b''
+
     while True:
-        data, addr = server_socket.recvfrom(PACKET_SIZE)
-        handle_conn(server_socket, addr, data)
-        next_seq = 1
-        start_time = time.time()
-        file_data = b''
+        packet = server_socket.recv(PACKET_SIZE)
+        seq_num, ack_num, flags, data = parse_packet(packet)
 
-        while True:
-            packet = server_socket.recv(PACKET_SIZE)
-            seq_num, ack_num, flags, data = parse_packet(packet)
+        if flags & FIN:
+            with open('file.jpg', 'wb') as f:
+                f.write(file_data)
 
-            if flags & FIN:
-                with open('file.jpg', 'wb') as f:
-                    f.write(file_data)
+            throughput = len(file_data) / 1000 / 1000 / (time.time() - start_time)
+            print(f'\nThe throughput is {round(throughput, 2)} Mbps\n')
+            handle_conn(server_socket, addr, packet)
+            break
 
-                throughput = len(file_data) / 1000 / 1000 / (time.time() - start_time)
-                print(f'\nThe throughput is {round(throughput, 2)} Mbps\n')
-                handle_conn(server_socket, addr, packet)
-                break
+        # Discard the packet that was specified with the -d flag. Then sets the value to -1 to avoid discarding again.
+        if seq_num == packet_to_dicard:
+            packet_to_dicard = -1
+        elif seq_num == next_seq:
+            print(f'{datetime.now().strftime("%H:%M:%S.%f")} -- packet {seq_num} is recieved')
 
-            # Discard the packet that was specified with the -d flag. Then sets the value to -1 to avoid discarding again.
-            if seq_num == packet_to_dicard:
-                packet_to_dicard = -1
-            elif seq_num == next_seq:
-                print(f'{datetime.now().strftime("%H:%M:%S.%f")} -- packet {seq_num} is recieved')
+            file_data += data
 
-                file_data += data
-
-                ack_packet = make_packet(ack_num, seq_num, ACK)
-                server_socket.sendto(ack_packet, addr)
-                print(f'{datetime.now().strftime("%H:%M:%S.%f")} -- sending ACK for the recieved packet {seq_num}')
-                next_seq += 1
-            # If the packet is out of order, dicard it
-            else:
-                print(f'{datetime.now().strftime("%H:%M:%S.%f")} -- out of order packet {seq_num} is recieved')
+            ack_packet = make_packet(ack_num, seq_num, ACK)
+            server_socket.sendto(ack_packet, addr)
+            print(f'{datetime.now().strftime("%H:%M:%S.%f")} -- sending ACK for the recieved packet {seq_num}')
+            next_seq += 1
+        # If the packet is out of order, dicard it
+        else:
+            print(f'{datetime.now().strftime("%H:%M:%S.%f")} -- out of order packet {seq_num} is recieved')
 
 
 

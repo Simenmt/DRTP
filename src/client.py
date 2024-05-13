@@ -157,7 +157,7 @@ def recv_ack(client_socket, packets):
     Returns nothing
 '''   
 def handle_rto(client_socket, packets, addr):
-    print("RTO occured")
+    print(f'{datetime.now().strftime("%H:%M:%S.%f")} -- RTO occured')
 
     for seq_num, packet in packets.items():
         print(f'{datetime.now().strftime("%H:%M:%S.%f")} -- retransmitting packet with seq {seq_num}')
