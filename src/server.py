@@ -26,16 +26,18 @@ def server_mode(args):
     next_seq = 1
     start_time = time.time()
     file_data = b''
+    total_bytes = 0 # Variable to help correctly calculate the throughput
 
     while True:
         packet = server_socket.recv(PACKET_SIZE)
+        packet_size = len(packet)
         seq_num, ack_num, flags, data = parse_packet(packet)
 
         if flags & FIN:
             with open('file.jpg', 'wb') as f:
                 f.write(file_data)
-
-            throughput = len(file_data) / 1000 / 1000 / (time.time() - start_time)
+            print(total_bytes)
+            throughput = total_bytes / 1000 / 1000 / (time.time() - start_time)
             print(f'\nThe throughput is {round(throughput, 2)} Mbps\n')
             handle_conn(server_socket, addr, packet)
             break
@@ -47,6 +49,7 @@ def server_mode(args):
             print(f'{datetime.now().strftime("%H:%M:%S.%f")} -- packet {seq_num} is recieved')
 
             file_data += data
+            total_bytes += packet_size
 
             ack_packet = make_packet(ack_num, seq_num, ACK)
             server_socket.sendto(ack_packet, addr)

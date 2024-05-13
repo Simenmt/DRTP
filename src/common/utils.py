@@ -26,6 +26,6 @@ def make_packet(seq_num, ack_num, flags, data=b''):
 '''
 def parse_packet(packet):
     seq_num, ack_num, flags = struct.unpack('HHH', packet[:HEADER_SIZE])
-
     data = packet[HEADER_SIZE:]
+    
     return seq_num, ack_num, flags, data
