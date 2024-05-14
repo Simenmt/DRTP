@@ -25,18 +25,18 @@ def server_mode(args):
     handle_conn(server_socket, addr, data)
     next_seq = 1
     start_time = time.time()
-    file_data = b''
+    file_data = b'' # Empty binary variable to accumulate the file data
     total_bytes = 0 # Variable to help correctly calculate the throughput
 
     while True:
         packet = server_socket.recv(PACKET_SIZE)
-        packet_size = len(packet)
+        packet_size = len(packet) # We want to include the header data in the final throughput calculation
         seq_num, ack_num, flags, data = parse_packet(packet)
 
         if flags & FIN:
             with open('file.jpg', 'wb') as f:
                 f.write(file_data)
-            print(total_bytes)
+
             throughput = total_bytes / 1000 / 1000 / (time.time() - start_time)
             print(f'\nThe throughput is {round(throughput, 2)} Mbps\n')
             handle_conn(server_socket, addr, packet)
@@ -84,7 +84,7 @@ def handle_conn(server_socket, addr, packet):
             server_socket.sendto(syn_ack_packet, addr)
             print("SYN ACK packet sent")
         elif flags & ACK:
-            print("ACK packet recieved")
+            print("ACK packet recieved\n")
             print("Connection established")
             break
         elif flags & FIN:

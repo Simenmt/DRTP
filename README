@@ -1,8 +1,0 @@
-A file-transer application written in Python using the socket ang struct modules
-
-The application is run in the command-line with the following commands:
-    To run the application in server-mode:
-    python/python3 application.py -s [-i ip address] [-p port] [-d packet to discard]
-
-    To run the application in client-mode:
-    python/python3 application.py -c [-i ip address] [-p port] [-f file to transer] [-w window size]

@@ -142,9 +142,9 @@ def recv_ack(client_socket, packets):
             return ack_num + 1
         print(f'{datetime.now().strftime("%H:%M:%S.%f")} -- ACK for packet = {ack_num} is recieved')
         while packets:
-            seq_num = next(iter(packets))  # get first key in dict
-            packets.pop(seq_num)  # remove the key
-            if seq_num == ack_num:
+            seq_num = next(iter(packets))  # Get first key in dict
+            packets.pop(seq_num)  # Remove the key
+            if seq_num == ack_num: # When we have removed all packets including the one we just got an ACK for, break
                 break
     return ack_num + 1
 '''
