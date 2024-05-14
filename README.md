@@ -248,5 +248,14 @@ DATA finished
 FIN packet sent
 FIN-ACK packet recieved
 Connection closed
+```
 
+In cases where the server is not running or the client for some other reason is not able to connect to the given IP and port, you should expect
+this simple output:
+
+```console
+h1$ 'python3 application.py -c -i 10.0.1.2 -p 8080 -f iceland_safiqul.jpg'
+
+SYN packet sent
+Connection failed
 ```
