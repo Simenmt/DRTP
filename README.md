@@ -1,4 +1,4 @@
-DRTP (DATA2410 Reliable Data Transfer)
+<h2>DATA2410 Reliable Transport Protocol (DRTP)</h2>
 
 A file-transer application written in Python using the socket and struct modules
 
