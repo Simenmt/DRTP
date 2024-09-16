@@ -1,3 +1,5 @@
+DRTP (DATA2410 Reliable Data Transfer)
+
 A file-transer application written in Python using the socket and struct modules
 
 The application is run in the command-line with the following commands:
